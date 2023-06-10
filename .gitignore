@@ -1,3 +1,5 @@
+clothing_trained_model.h5
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

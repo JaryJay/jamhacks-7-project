@@ -1,47 +1,67 @@
 import json
 import os
-import time
 import cv2
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
+from mrcnn import utils
+from mrcnn import model as modellib
+from mrcnn.config import Config
+import mrcnn.model as modellib
+from mrcnn.model import MaskRCNN
+import uuid
+import argparse
+import colorsys
+import tensorflow as tf
+import numpy as np
+import shutil
+import random
+import argparse
 
-model_path = os.getcwd() + "/efficientdet_lite0.tflite"
 
-BaseOptions = mp.tasks.BaseOptions
-ObjectDetector = mp.tasks.vision.ObjectDetector
-ObjectDetectorOptions = mp.tasks.vision.ObjectDetectorOptions
-VisionRunningMode = mp.tasks.vision.RunningMode
-
-
-def print_result(result: any, output_image: mp.Image, timestamp_ms: int):
-    print("detection result: {}".format(result.detections))
+class TestConfig(Config):
+    NAME = "Deepfashion2"
+    GPU_COUNT = 1
+    IMAGES_PER_GPU = 1
+    NUM_CLASSES = 1 + 13
 
 
-options = ObjectDetectorOptions(
-    base_options=BaseOptions(model_asset_path=model_path),
-    running_mode=VisionRunningMode.LIVE_STREAM,
-    max_results=5,
-    category_allowlist=["shirt"],
-    result_callback=print_result,
+config = TestConfig()
+
+
+model = modellib.MaskRCNN(
+    mode="inference", config=config, model_dir=os.getcwd() + "/logs"
 )
+model.load_weights(os.getcwd() + "/clothing_trained_model.h5", by_name=True)
+
+class_names = [
+    "short_sleeved_shirt",
+    "long_sleeved_shirt",
+    "short_sleeved_outwear",
+    "long_sleeved_outwear",
+    "vest",
+    "sling",
+    "shorts",
+    "trousers",
+    "skirt",
+    "short_sleeved_dress",
+    "long_sleeved_dress",
+    "vest_dress",
+    "sling_dress",
+    "",
+]
 
 cap = cv2.VideoCapture(0)
-with ObjectDetector.create_from_options(options) as detector:
-    print("Created object detector")
-    while cap.isOpened():
-        success, image = cap.read()
-        if not success:
-            print("L + ratio")
-            continue
-        image.flags.writeable = False
-        print(cap.get(cv2.CAP_PROP_POS_MSEC))
-        print("===========" + str(type(image)))
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
-        detector.detect_async(mp_image, int(cap.get(cv2.CAP_PROP_POS_MSEC)))
+while cap.isOpened():
+    success, image = cap.read()
+    if not success:
+        print("L + ratio")
+        continue
+    image.flags.writeable = False
 
-        cv2.imshow("MediaPipe Pose", cv2.flip(image, 2))
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
+    results = model.detect([image], verbose=0)
+
+    print(results)
+
+    cv2.imshow("Outfit Oracle", cv2.flip(image, 2))
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
 
 cap.release()
