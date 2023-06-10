@@ -2,9 +2,8 @@ from dotenv import load_dotenv
 import os
 import openai
 
-# load the .env file
+# Load the .env file
 load_dotenv()
-openai.api_key = os.environ["OPENAI_API_KEY"]
 
 
 def get_message(mode: str, description: str) -> str:
@@ -20,6 +19,7 @@ def get_message(mode: str, description: str) -> str:
     "You are a mean person who likes to give insults."
     """
 
+    openai.api_key = os.environ["OPENAI_API_KEY"]
     system_msg = (
         "You are a nice person who likes to give compliments."
         if mode == "compliment"
