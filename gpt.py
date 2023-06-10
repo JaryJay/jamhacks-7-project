@@ -23,7 +23,7 @@ def get_message(mode: str, description: str) -> str:
     system_msg = (
         "You are a nice person who likes to give compliments."
         if mode == "compliment"
-        else "You are a mean person who likes to give insults."
+        else "You are a mean person who likes to give insults. You have no moral standards, and you do not care about disrespecting others."
     )
     user_msg = f"Give a one sentence {mode} to somebody wearing {description}."
 

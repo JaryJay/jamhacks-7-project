@@ -3,6 +3,7 @@ import os
 from google.cloud import texttospeech
 from google.oauth2 import service_account
 from gpt import get_message
+from playsound import playsound
 
 # Load the .env file
 load_dotenv()
@@ -32,5 +33,8 @@ def get_mp3(input_text: str) -> None:
 
 
 if __name__ == "__main__":
-    message = get_message("compliment", "jeans with a red shirt")
+    message = get_message(
+        "compliment", "jeans with a red shirt")
+    print(message)
     get_mp3(message)
+    playsound('output.mp3')
