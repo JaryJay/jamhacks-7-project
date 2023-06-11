@@ -1,108 +1,115 @@
-import json
-import os
+import torchvision
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 import cv2
-from mrcnn import utils
-from mrcnn import model as modellib
-from mrcnn.config import Config
-import mrcnn.model as modellib
-from mrcnn.model import MaskRCNN
-import uuid
-import argparse
-import colorsys
-import tensorflow as tf
+import torch
+import torchvision.transforms as T
+from PIL import Image
 import numpy as np
-import shutil
-import random
-import argparse
+import csv
 
 
-class TestConfig(Config):
-    NAME = "Deepfashion2"
-    GPU_COUNT = 1
-    IMAGES_PER_GPU = 1
-    NUM_CLASSES = 1 + 13
+def get_instance_segmentation_model(num_classes):
+    # load an instance segmentation model pre-trained on COCO
+    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
+
+    # get the number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    # now get the number of input features for the mask classifier
+    in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
+    hidden_layer = 256
+    # and replace the mask predictor with a new one
+    model.roi_heads.mask_predictor = MaskRCNNPredictor(
+        in_features_mask, hidden_layer, num_classes
+    )
+
+    return model
 
 
-config = TestConfig()
+def _get_instance_segmentation_model(num_classes):
+    # load a model pre-trained pre-trained on COCO
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
 
-model = modellib.MaskRCNN(
-    mode="inference", config=config, model_dir=os.getcwd() + "/logs"
-)
-model.load_weights(os.getcwd() + "/clothing_trained_model.h5", by_name=True)
+    # replace the classifier with a new one, that has
+    # num_classes which is user-defined
+    # get number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    return model
 
-class_names = [
-    "short_sleeved_shirt",
-    "long_sleeved_shirt",
-    "short_sleeved_outwear",
-    "long_sleeved_outwear",
-    "vest",
-    "sling",
-    "shorts",
-    "trousers",
-    "skirt",
-    "short_sleeved_dress",
-    "long_sleeved_dress",
-    "vest_dress",
-    "sling_dress",
-    "",
-]
 
-score_threshold = 0.5  # Set the minimum score threshold
-max_results = 2  # Set the maximum number of results for each class
+# Function to preprocess the frame
+def preprocess_frame(frame):
+    transform = T.Compose([T.ToTensor()])
+    return transform(frame)
 
-cap = cv2.VideoCapture(0)
-while cap.isOpened():
-    success, image = cap.read()
-    if not success:
-        print("L + ratio")
-        continue
-    image = cv2.flip(image, 2)
-    image.flags.writeable = False
 
-    results = model.detect([image], verbose=0)
+# Function to draw predictions on the frame
+def draw_predictions(frame, boxes, labels, masks):
+    for box, label, mask in zip(boxes, labels, masks):
+        color = (0, 255, 0)  # Green color for bounding box and mask
+        x1, y1, x2, y2 = box.astype(int)
+        frame = cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        mask = mask > 0.5  # Threshold the mask probabilities
+        mask = mask[0].cpu().numpy().astype("uint8") * 255
 
-    r = results[0]
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        frame = cv2.drawContours(frame, contours, -1, color, 2)
+        frame = cv2.putText(
+            frame, str(label), (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2
+        )
+    return frame
 
-    # Create a dictionary to store unique class labels and their corresponding bounding boxes
-    unique_labels = {}
 
-    for i in range(r["rois"].shape[0]):
-        class_id = r["class_ids"][i]
-        class_name = class_names[class_id]
-        score = r["scores"][i]
-        bbox = r["rois"][i]
+def main():
+    # Load the instance segmentation model
+    num_classes = 91  # Number of classes for COCO dataset
+    model = get_instance_segmentation_model(num_classes)
 
-        if score >= score_threshold:  # Filter out results below the threshold
-            if class_name not in unique_labels:
-                unique_labels[class_name] = []
-            unique_labels[class_name].append((score, bbox))
+    # Set the device for inference
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    model.to(device)
+    model.eval()
 
-    # Draw the limited number of bounding boxes and labels on the image
-    for class_name, detections in unique_labels.items():
-        detections = sorted(detections, key=lambda x: x[0], reverse=True)[
-            :max_results
-        ]  # Sort and limit detections
+    # Initialize the camera
+    cap = cv2.VideoCapture(0)  # Replace with the correct camera index if needed
 
-        color = (0, 255, 0)  # Green color for bounding boxes
+    while True:
+        # Read a frame from the camera
+        ret, frame = cap.read()
 
-        for score, bbox in detections:
-            cv2.rectangle(image, (bbox[1], bbox[0]), (bbox[3], bbox[2]), color, 2)
+        # Preprocess the frame
+        input_frame = preprocess_frame(frame)
+        input_frame = input_frame.unsqueeze(0)  # Add a batch dimension
+        input_frame = input_frame.to(device)
 
-            label = "{}: {:.2f}".format(class_name, score)  # Move label creation here
-            y = bbox[0] + 20
-            cv2.putText(
-                image,
-                label,
-                (bbox[1], y),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                color,
-                2,
-            )
+        # Perform inference
+        with torch.no_grad():
+            predictions = model(input_frame)
 
-    cv2.imshow("Outfit Oracle", image)
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
+        # Process the predictions
+        boxes = predictions[0]["boxes"].cpu().numpy()
+        labels = predictions[0]["labels"].cpu().numpy()
+        masks = predictions[0]["masks"]
 
-cap.release()
-cv2.destroyAllWindows()
+        # Draw predictions on the frame
+        frame = draw_predictions(frame, boxes, labels, masks)
+
+        # Display the frame
+        cv2.imshow("Instance Segmentation", frame)
+
+        # Break the loop if 'q' key is pressed
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    # Release the camera and close the window
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()
