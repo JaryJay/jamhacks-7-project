@@ -116,14 +116,14 @@ CLASS_NAMES = [
 def create_model():
     model = tf.keras.Sequential(
         [
-            tf.keras.layers.Flatten(input_shape=(256, 256)),
-            tf.keras.layers.Dense(128, activation="relu"),
-            tf.keras.layers.Dense(28),
+            tf.keras.layers.Flatten(input_shape=(64, 64, 3), name="input"),
+            tf.keras.layers.Dense(12288, activation="relu", name="hidden1"),
+            tf.keras.layers.Dense(228, name="output"),
         ]
     )
     model.compile(
         optimizer="adam",
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
         metrics=["accuracy"],
     )
     return model
@@ -132,9 +132,13 @@ def create_model():
 if __name__ == "__main__":
     images, labels = load_data()
     print(load_data())
-    train_images, train_labels, test_images, test_labels = train_test_split(
+    print(images.shape)
+    print(labels.shape)
+    train_images, test_images, train_labels, test_labels = train_test_split(
         images, labels, test_size=0.33
     )
+    print(train_images.shape)
+    print(train_labels.shape)
     model = create_model()
     model.fit(train_images, train_labels, epochs=10)
     test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=2)
