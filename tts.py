@@ -33,8 +33,7 @@ def get_mp3(input_text: str) -> None:
 
 
 if __name__ == "__main__":
-    message = get_message(
-        "compliment", "jeans with a red shirt")
+    message = get_message("compliment", "jeans with a red shirt")
     print(message)
     get_mp3(message)
-    playsound('output.mp3')
+    playsound("output.mp3")
