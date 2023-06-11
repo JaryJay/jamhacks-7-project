@@ -43,8 +43,7 @@ def palette(clusters):
     return palette
 
 
-def get_colors(img_path):
-    im = Image.open(img_path)
+def get_colors(im):
     w, h = im.size
 
     im_cropped = im.crop((w // 3, h // 8, 2 * w // 3, h))
@@ -89,4 +88,4 @@ def get_colors(img_path):
 
 
 if __name__ == "__main__":
-    print(get_colors("a.png"))
+    print(get_colors(Image.open("a.png")))

@@ -11,7 +11,7 @@ def save_data():
     data = json.load(f)
     print("BONK")
 
-    desiredTrainImgNum = 5
+    desiredTrainImgNum = 60
     c = 1000000 // desiredTrainImgNum
 
     images = []

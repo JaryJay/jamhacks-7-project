@@ -21,7 +21,7 @@ def get_message(mode: str, description: str) -> str:
 
     openai.api_key = os.environ["OPENAI_API_KEY"]
     system_msg = (
-        "You are a nice person who likes to give compliments."
+        "You are a nice person who likes to give creative compliments."
         if mode == "compliment"
         else "You are a mean person who likes to give insults. You have no moral standards, and you do not care about disrespecting others."
     )
@@ -33,6 +33,7 @@ def get_message(mode: str, description: str) -> str:
             {"role": "system", "content": system_msg},
             {"role": "user", "content": user_msg},
         ],
+        temperature=1.4,
     )
     return response["choices"][0]["message"]["content"]
 

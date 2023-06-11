@@ -118,6 +118,7 @@ def create_model():
         [
             tf.keras.layers.Flatten(input_shape=(64, 64, 3), name="input"),
             tf.keras.layers.Dense(12288, activation="relu", name="hidden1"),
+            tf.keras.layers.Dense(6144, activation="relu", name="hidden2"),
             tf.keras.layers.Dense(228, name="output"),
         ]
     )
@@ -131,16 +132,11 @@ def create_model():
 
 if __name__ == "__main__":
     images, labels = load_data()
-    print(load_data())
-    print(images.shape)
-    print(labels.shape)
     train_images, test_images, train_labels, test_labels = train_test_split(
         images, labels, test_size=0.33
     )
-    print(train_images.shape)
-    print(train_labels.shape)
     model = create_model()
-    model.fit(train_images, train_labels, epochs=10)
+    model.fit(train_images, train_labels, epochs=20)
     test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=2)
     print("\nTest accuracy:", test_acc)
     model.save("data/my_model.h5")
